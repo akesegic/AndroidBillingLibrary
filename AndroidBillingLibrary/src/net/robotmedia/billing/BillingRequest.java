@@ -297,7 +297,7 @@ public abstract class BillingRequest {
         	return IGNORE_REQUEST_ID;        	
         }
 
-        if (validateResponse(response)) {
+        if (response != null && validateResponse(response)) {
         	processOkResponse(response);
         	return response.getLong(KEY_REQUEST_ID, IGNORE_REQUEST_ID);
         } else {
