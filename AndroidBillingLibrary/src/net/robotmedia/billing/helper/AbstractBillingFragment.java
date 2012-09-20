@@ -5,10 +5,11 @@ import net.robotmedia.billing.BillingController.BillingStatus;
 import net.robotmedia.billing.BillingRequest.ResponseCode;
 import net.robotmedia.billing.model.Transaction.PurchaseState;
 import android.annotation.TargetApi;
-import android.app.Fragment;
+
+import com.actionbarsherlock.app.SherlockFragment;
 
 @TargetApi(11)
-public abstract class AbstractBillingFragment extends Fragment implements BillingController.IConfiguration {
+public abstract class AbstractBillingFragment extends SherlockFragment implements BillingController.IConfiguration {
 
 	protected AbstractBillingObserver mBillingObserver;
 

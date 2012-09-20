@@ -19,9 +19,10 @@ import net.robotmedia.billing.BillingController;
 import net.robotmedia.billing.BillingController.BillingStatus;
 import net.robotmedia.billing.BillingRequest.ResponseCode;
 import net.robotmedia.billing.model.Transaction.PurchaseState;
-import android.app.Activity;
 
-public abstract class AbstractBillingActivity extends Activity implements BillingController.IConfiguration {
+import com.actionbarsherlock.app.SherlockFragmentActivity;
+
+public abstract class AbstractBillingActivity extends SherlockFragmentActivity implements BillingController.IConfiguration {
 
 	protected AbstractBillingObserver mBillingObserver;
 
