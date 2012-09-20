@@ -1,28 +1,30 @@
 /*   Copyright 2011 Robot Media SL (http://www.robotmedia.net)
-*
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*/
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ */
 
 package net.robotmedia.billing;
 
 import java.util.LinkedList;
 
-import static net.robotmedia.billing.BillingRequest.*;
-
+import net.robotmedia.billing.BillingRequest.CheckBillingSupported;
+import net.robotmedia.billing.BillingRequest.CheckSubscriptionSupported;
+import net.robotmedia.billing.BillingRequest.ConfirmNotifications;
+import net.robotmedia.billing.BillingRequest.GetPurchaseInformation;
+import net.robotmedia.billing.BillingRequest.RequestPurchase;
+import net.robotmedia.billing.BillingRequest.RequestSubscription;
+import net.robotmedia.billing.BillingRequest.RestoreTransactions;
 import net.robotmedia.billing.utils.Compatibility;
-
-import com.android.vending.billing.IMarketBillingService;
-
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -31,6 +33,8 @@ import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
+
+import com.android.vending.billing.IMarketBillingService;
 
 public class BillingService extends Service implements ServiceConnection {
 
@@ -56,7 +60,7 @@ public class BillingService extends Service implements ServiceConnection {
 		final Intent intent = createIntent(context, Action.CHECK_SUBSCRIPTION_SUPPORTED);
 		context.startService(intent);
 	}
-	
+
 	public static void confirmNotifications(Context context, String[] notifyIds) {
 		final Intent intent = createIntent(context, Action.CONFIRM_NOTIFICATIONS);
 		intent.putExtra(EXTRA_NOTIFY_IDS, notifyIds);
@@ -87,7 +91,7 @@ public class BillingService extends Service implements ServiceConnection {
 		intent.putExtra(EXTRA_DEVELOPER_PAYLOAD, developerPayload);
 		context.startService(intent);
 	}
-	
+
 	public static void requestSubscription(Context context, String itemId, String developerPayload) {
 		final Intent intent = createIntent(context, Action.REQUEST_SUBSCRIPTION);
 		intent.putExtra(EXTRA_ITEM_ID, itemId);
@@ -118,7 +122,7 @@ public class BillingService extends Service implements ServiceConnection {
 		final CheckBillingSupported request = new CheckBillingSupported(packageName, startId);
 		runRequestOrQueue(request);
 	}
-	
+
 	private void checkSubscriptionSupported(int startId) {
 		final String packageName = getPackageName();
 		final CheckSubscriptionSupported request = new CheckSubscriptionSupported(packageName, startId);
@@ -172,15 +176,15 @@ public class BillingService extends Service implements ServiceConnection {
 	// method will not be called.
 	@Override
 	public void onStart(Intent intent, int startId) {
-	    handleCommand(intent, startId);
+		handleCommand(intent, startId);
 	}
 
 	// @Override // Avoid compile errors on pre-2.0
 	public int onStartCommand(Intent intent, int flags, int startId) {
-	    handleCommand(intent, startId);
-	    return Compatibility.START_NOT_STICKY;
+		handleCommand(intent, startId);
+		return Compatibility.START_NOT_STICKY;
 	}
-	
+
 	private void handleCommand(Intent intent, int startId) {
 		final Action action = getActionFromIntent(intent);
 		if (action == null) {
@@ -217,7 +221,7 @@ public class BillingService extends Service implements ServiceConnection {
 		final RequestPurchase request = new RequestPurchase(packageName, startId, itemId, developerPayload);
 		runRequestOrQueue(request);
 	}
-	
+
 	private void requestSubscription(Intent intent, int startId) {
 		final String packageName = getPackageName();
 		final String itemId = intent.getStringExtra(EXTRA_ITEM_ID);
@@ -239,10 +243,15 @@ public class BillingService extends Service implements ServiceConnection {
 		int maxStartId = -1;		
 		while ((request = mPendingRequests.peek()) != null) {
 			if (mService != null) {
-				runRequest(request);
-				mPendingRequests.remove();
-				if (maxStartId < request.getStartId()) {
-					maxStartId = request.getStartId();
+				try {
+					runRequest(request);
+					mPendingRequests.remove();
+					if (maxStartId < request.getStartId()) {
+						maxStartId = request.getStartId();
+					}
+				} catch (RemoteException re) {
+					rebindMarketBillingService();
+					return;
 				}
 			} else {
 				bindMarketBillingService();
@@ -254,13 +263,24 @@ public class BillingService extends Service implements ServiceConnection {
 		}
 	}
 
-	private void runRequest(BillingRequest request) {
+	private void rebindMarketBillingService() {
+		try {
+			unbindService(this);
+		} catch (Exception ignore) { }
+
+		mService = null;
+		bindMarketBillingService();
+	}
+
+	private void runRequest(BillingRequest request) throws RemoteException {
 		try {
 			final long requestId = request.run(mService);
 			BillingController.onRequestSent(requestId, request);
 		} catch (RemoteException e) {
 			Log.w(this.getClass().getSimpleName(), "Remote billing service crashed");
 			// TODO: Retry?
+			// Maybe fixed with:
+			throw e;
 		}
 	}
 
@@ -272,7 +292,7 @@ public class BillingService extends Service implements ServiceConnection {
 			runPendingRequests();
 		}
 	}
-	
+
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
