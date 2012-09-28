@@ -671,6 +671,14 @@ public class BillingController {
 	public static void setConfiguration(IConfiguration config) {
 		configuration = config;
 	}
+	
+	public static void clearConfiguration() {
+		configuration = null;
+	}
+	
+	public static void clearObservers() {
+		observers.clear();
+	}
 
 	/**
 	 * Sets debug mode.
