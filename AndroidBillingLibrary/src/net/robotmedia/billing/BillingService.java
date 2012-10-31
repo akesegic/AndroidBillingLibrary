@@ -137,6 +137,7 @@ public class BillingService extends Service implements ServiceConnection {
 	}
 
 	private Action getActionFromIntent(Intent intent) {
+		if (intent == null) return null;	//Fix if intent is null
 		final String actionString = intent.getAction();
 		if (actionString == null) {
 			return null;
